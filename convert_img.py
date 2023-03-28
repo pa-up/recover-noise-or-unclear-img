@@ -69,6 +69,98 @@ def opencv2pil(cv_calc_img):
     return pil_img
 
 
+def add_gaussian_noise(image, mean=0, sigma=None):
+    """ガウシアンノイズを加えた画像を生成する関数
+
+    Args:
+        image (numpy.ndarray): 入力画像
+        mean (float): ガウス分布の平均値（デフォルトは0）
+        sigma (float or None): ガウス分布の標準偏差（デフォルトはNone 、sigma ∝ ノイズの大きさ）
+
+    Returns:
+        numpy.ndarray: ガウシアンノイズを加えた画像
+    """
+    if sigma is None:
+        np.random.seed(int(time.time() * 1000000 % 4294967296))  # 現在時刻のマイクロ秒以下を含める
+        sigma = np.random.randint(50, 101)  # 50から100までのランダムな整数値を生成
+        print(f"sigma : {sigma}")
+    noise = np.random.normal(mean, sigma, image.shape)
+    noisy_image = image + noise
+    noisy_image = np.clip(noisy_image, 0, 255).astype(np.uint8)
+    return noisy_image
+
+
+def generate_random_from_time(min , max):
+  """ 
+  ランダムにmin〜maxの範囲で数字を生成する関数 
+  現在時刻（ナノ秒単位）をシード値
+  """
+  # 現在時刻を乱数のシード値に設定
+  random.seed(time.time_ns() % 4294967296)
+  # min 〜 max のランダムな整数を生成
+  rand_num = random.randint(min , max)
+  return rand_num
+
+
+def marge_two_img(img1 , img2):
+  """ 2枚の画像を左右に連結する関数（同じ高さの画像のみ）"""
+  img1_height , img1_width = img1.shape[0] , img1.shape[1]
+  img2_height , img2_width = img2.shape[0] , img2.shape[1]
+  # 左右を分割する縦線の太さ
+  line_weight = 5
+  # 緑色の画像を作成
+  marged_img = np.ones( (img1_height , img1_width + img2_width + line_weight , 3) )
+  marged_img[: , :] = [0, 255, 0]   # 画像全体を緑色に変換
+  marged_img[ : , : img1_width] = img1
+  marged_img[ : , img1_width + line_weight : img1_width + img2_width + line_weight] = img2
+  return marged_img
+
+
+
+def generate_input_img_path():
+  """ 入力画像の保存ファイル名を生成"""
+  # 現在時刻をシード値として使用
+  random.seed(time.time())
+  digits = [str(random.randint(0, 9)) for _ in range(7)]
+  input_img_path = "".join(digits) + ".jpg"
+  return input_img_path
+
+
+
+def resize_to_square(input_img , resized_length):
+  """ 
+  入力画像を正方形に収まるようにリサイズし、余白を黒で塗りつぶす関数
+  （リサイズ後の画像を左 or 上に敷き詰め、画像を縦横の短い方向を黒で塗りつぶす）
+  """
+  input_height = input_img.shape[0]
+  input_width = input_img.shape[1]
+  
+  # 入力画像が正方形の場合
+  if input_width == input_height:
+    resized_height , resized_width = resized_length , resized_length
+    resized_input_img = cv2.resize( input_img, (resized_height , resized_width) )
+    resized_square_img = resized_input_img
+
+  # 入力画像が縦長の場合
+  if  input_width < input_height:
+    resized_height , resized_width = resized_length , int( input_width * resized_length / input_height )
+    resized_input_img = cv2.resize( input_img, (resized_width , resized_height) )
+    # 画像を正方形の左に敷き詰め、右の余白を黒で埋め尽くす
+    resized_square_img = np.zeros( (resized_length , resized_length , 3) )
+    resized_square_img[ : ,  : resized_width] = resized_input_img
+  
+  # 入力画像が横長の場合
+  if  input_width > input_height:
+    resized_height , resized_width = int( input_height * resized_length / input_width ) , resized_length
+    resized_input_img = cv2.resize( input_img, (resized_width , resized_height) )
+    # 画像を正方形の上に敷き詰め、下の余白を黒で埋め尽くす
+    resized_square_img = np.zeros( (resized_length , resized_length , 3) )
+    resized_square_img[ : resized_height ,  : ] = resized_input_img
+
+  resized_square_img = resized_square_img.astype(np.float32)
+  return resized_square_img , resized_input_img
+
+
 
 def max_size(cv_img , max_img_size):
     """ 
